@@ -8,14 +8,14 @@ from DQN import DQNClass, trainedDQN
 from graph_functions import networkGraph
 from state import defineState
 
-def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:int, threshold:float, arrivalRate:int, serviceRate:int, k:int, model=False):
-    if model != False:    
+def simulation(topology:str, totalRequests:int, spectrumSlots:int, threshold:float, arrivalRate:int, serviceRate:int, k:int, model=False):
+    if model != False:
         try:
             trainedAgent = trainedDQN(model)
         except:
             print("Problem Encountered while loading the model, please check Model file, exiting......")
             exit()
-    
+
     try:
         data = pd.read_csv(topology, index_col=0)
     except:
@@ -41,10 +41,6 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
         actionInfo.append((functions.firstFit,n))
         actionInfo.append((functions.exactFit,n))
 
-    agent = DQNClass(stateSize, actionSize)
-
-    BRperEpisode = {'Episode': [], 'FF' : [], 'EF' : [], 'RF' : [], 'DQNSA' : []}
-
     for i in range(totalRequests):
         re = []
         arrivalTime = np.random.poisson(arrivalRate, episodeSize)
@@ -55,7 +51,7 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
         #value = [3,6,9,12,15,18,21]
         bandwidthRequirement = random.choice(bandwidth)
         sdPair.extend([bandwidthRequirement, arrivalTime[i], holdingTime[i]])
-        re.append(sdPair)    
+        re.append(sdPair)
         requests.append(re)
 
     #edgelinks = list(enumerate(graph.edges))
@@ -77,9 +73,11 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
 
     activeRequestsDQNSA = {}
     activeRequests = {'FF':{}, 'EF':{}, 'RF':{}}
-    
+
     blockedRequestsDQNSA = 0
     blockedRequests = {'FF' : 0, 'EF' : 0, 'RF' : 0}
+
+    BlockingRatios = {"NumberOfRequests" : totalRequests}
 
     for id, r in enumerate(requests):
         requestNum += 1
@@ -96,7 +94,7 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
                 blockedRequests[policy] += 1
 
         action = trainedAgent.act(state)
-        
+
         selectedPolicy, selectedPath = actionInfo[action]
 
         linkNumbers = kpaths[selectedPath]
@@ -105,7 +103,7 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
 
         if occupiedSlotsIndexes is not None:
             functions.addToActiveRequests(activeRequestsDQNSA, id, current_time, holding_time, linkNumbers, occupiedSlotsIndexes)
-            
+
         if reward == -0.25:
             blockedRequestsDQNSA += 1
 
@@ -118,23 +116,22 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
             history[i].append(details[i])
         '''
 
-        functions.checkActiveRequests(current_time, activeRequestsDQNSA, slotTableDQNSA) 
+        functions.checkActiveRequests(current_time, activeRequestsDQNSA, slotTableDQNSA)
         for policy in policies:
             functions.checkActiveRequests(current_time, activeRequests[policy], slotTables[policy])
-            
+
         #print(blockedRequests)
 
     #print(blockedRequests)
-    BR = blockedRequestsDQNSA/episodeSize
-    
+    BR = blockedRequestsDQNSA/totalRequests
+
     for policy in policies:
-        ratio = blockedRequests[policy]/episodeSize
-        BRperEpisode[policy].append(ratio)
-    
-    BRperEpisode['Episode'].append(episodeNum)
-    BRperEpisode['DQNSA'].append(BR)
+        ratio = blockedRequests[policy]/totalRequests
+        BlockingRatios[policy] = ratio
 
+    BlockingRatios['DQNSA'] = BR 
 
+    return BlockingRatios
 
     '''
     dictData = {item[0]:item[1:] for item in history}
@@ -143,12 +140,4 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, episodeSize:i
 
     dataframe.to_excel('history.xlsx', index=True)
     '''
-
-    print(BRperEpisode)
-    blockingRatioData = pd.DataFrame(BRperEpisode)
-
-    blockingRatioData.to_excel('BlockingRatios.xlsx', index=True)
-
-    blockingRatioData.head()
-    blockingRatioData.plot(x = 'Episode', title='Blocking Ratios')
 
