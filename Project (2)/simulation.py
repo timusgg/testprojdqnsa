@@ -8,7 +8,7 @@ from DQN import DQNClass, trainedDQN
 from graph_functions import networkGraph
 from state import defineState
 
-def simulation(topology:str, totalRequests:int, spectrumSlots:int, threshold:float, arrivalRate:int, serviceRate:int, k:int, model=False):
+def simulation(topology:str, totalRequests:int, spectrumSlots:int, arrivalRate:int, serviceRate:int, k:int, model=False):
     if model != False:
         try:
             trainedAgent = trainedDQN(model)
@@ -140,4 +140,28 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, threshold:flo
 
     dataframe.to_excel('history.xlsx', index=True)
     '''
+    
+def run():
+    BlockingRatios = {}
+    policies = ["FF", "EF", "RF", "DQNSA"]
+    for num in range(100, 1000, 100):
+        result = simulation("nsfnet.csv", num, spectrumSlots=50, arrivalRate=12, serviceRate=14, k=5, model="trainedNetwork.h5")
+        for key, value in result.items():
+            if key not in BlockingRatios:
+                BlockingRatios[key] = value
+            else:
+                BlockingRatios[key].append(value)
 
+    data = pd.DataFrame(BlockingRatios)
+    data.to_excel("SimulationBlockingRatios.xlsx", index=False)
+
+    for policy in policies:
+        plt.plot(data["NumberOfRequests"], data[policy])
+    
+
+    plt.xlabel("Requests")
+    plt.ylabel("Policies")
+    plt.legend()
+    plt.show()
+
+run()
