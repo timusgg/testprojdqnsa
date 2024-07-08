@@ -1,14 +1,17 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-import random
+#type: ignore
 import copy
+import random
+
 import functions
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from DQN import DQNClass, trainedDQN
 from graph_functions import networkGraph
 from state import defineState
 
-def simulation(topology:str, totalRequests:int, spectrumSlots:int, arrivalRate:int, serviceRate:int, k:int, model=False):
+
+def simulation(topology:str, totalRequests:int, spectrumSlots:int, arrivalRate:int, serviceRate:int, k:int, model=False, excel=False):
     if model != False:
         try:
             trainedAgent = trainedDQN(model)
@@ -41,19 +44,26 @@ def simulation(topology:str, totalRequests:int, spectrumSlots:int, arrivalRate:i
         actionInfo.append((functions.firstFit,n))
         actionInfo.append((functions.exactFit,n))
 
-    for i in range(totalRequests):
-        re = []
-        arrivalTime = np.random.poisson(arrivalRate, episodeSize)
-        arrivalTime.sort()
-        holdingTime = np.random.poisson(serviceRate, episodeSize)
-        #bandwidth = random.choices(bandwidthRequirement, k = episodeSize)
-        sdPair = random.sample(nodes, 2)
-        #value = [3,6,9,12,15,18,21]
-        bandwidthRequirement = random.choice(bandwidth)
-        sdPair.extend([bandwidthRequirement, arrivalTime[i], holdingTime[i]])
-        re.append(sdPair)
-        requests.append(re)
+    if excel != False:
+        requests_data = pd.read_excel(filename)
+        holdingTime = [1000] * len(requests_data)
+        data['Service Rate'] = holdingTime
+        requests = data.values.tolist()
+    else:
+        for i in range(totalRequests):
+            re = []
+            arrivalTime = np.random.poisson(arrivalRate, episodeSize)
+            arrivalTime.sort()
+            holdingTime = np.random.poisson(serviceRate, episodeSize)
+            #bandwidth = random.choices(bandwidthRequirement, k = episodeSize)
+            sdPair = random.sample(nodes, 2)
+            #value = [3,6,9,12,15,18,21]
+            bandwidthRequirement = random.choice(bandwidth)
+            sdPair.extend([bandwidthRequirement, arrivalTime[i], holdingTime[i]])
+            re.append(sdPair)
+            requests.append(re)
 
+    
     #edgelinks = list(enumerate(graph.edges))
 
 
@@ -145,7 +155,8 @@ def run():
     BlockingRatios = {}
     policies = ["FF", "EF", "RF", "DQNSA"]
     for num in range(100, 1000, 100):
-        result = simulation("nsfnet.csv", num, spectrumSlots=50, arrivalRate=12, serviceRate=14, k=5, model="trainedNetwork.h5")
+        #if you want to specify the excel file for requests then specify the excel file as excel = "filename.xlsx", else leave it as it is.
+        result = simulation("nsfnet.csv", num, spectrumSlots=50, arrivalRate=12, serviceRate=14, k=5, model="trainedNetwork.h5", excel="requests.xlsx")
         for key, value in result.items():
             if key not in BlockingRatios:
                 BlockingRatios[key] = value
